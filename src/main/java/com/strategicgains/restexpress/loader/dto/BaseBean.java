@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.strategicgains.restexpress.loader.config;
+package com.strategicgains.restexpress.loader.dto;
 
 import java.io.Serializable;
 import org.apache.commons.lang.builder.EqualsBuilder;

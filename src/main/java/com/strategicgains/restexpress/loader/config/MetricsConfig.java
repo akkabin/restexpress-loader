@@ -1,5 +1,7 @@
 package com.strategicgains.restexpress.loader.config;
 
+import com.strategicgains.restexpress.loader.dto.BaseBean;
+
 public class MetricsConfig extends BaseBean {
 	/**
 	 * 

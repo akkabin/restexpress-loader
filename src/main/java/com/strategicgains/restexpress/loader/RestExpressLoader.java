@@ -1,5 +1,6 @@
 package com.strategicgains.restexpress.loader;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -11,6 +12,7 @@ import com.strategicgains.restexpress.RestExpress;
 import com.strategicgains.restexpress.loader.config.AppConfiguration;
 import com.strategicgains.restexpress.loader.config.MetricsConfig;
 import com.strategicgains.restexpress.loader.config.YamlConfigRunner;
+import com.strategicgains.restexpress.loader.dto.DtoAssembler;
 import com.strategicgains.restexpress.loader.serialization.ResponseProcessors;
 import com.strategicgains.restexpress.pipeline.SimpleConsoleLogMessageObserver;
 import com.strategicgains.restexpress.plugin.cache.CacheControlPlugin;
@@ -23,7 +25,7 @@ public class RestExpressLoader {
 			.getLogger(RestExpressLoader.class);
 	private static final String SERVICE_NAME = "RestExpress";
 
-	private static void init(String[] args) throws ClassNotFoundException {
+	private static void init(String[] args) throws ClassNotFoundException, IOException {
 		AppConfiguration config = new YamlConfigRunner().load(args[0]);
 
 		RestExpress server = new RestExpress()
@@ -44,6 +46,9 @@ public class RestExpressLoader {
 
 		ServiceLoader loader = new ServiceLoader();
 		loader.init(config, server);
+		
+		DtoAssembler assembler = new DtoAssembler();
+		assembler.init(config);
 
 		configureMetrics(config, server);
 

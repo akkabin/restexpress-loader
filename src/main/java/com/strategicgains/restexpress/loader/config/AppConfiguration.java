@@ -2,6 +2,8 @@ package com.strategicgains.restexpress.loader.config;
 
 import java.util.List;
 
+import com.strategicgains.restexpress.loader.dto.BaseBean;
+
 
 public class AppConfiguration extends BaseBean{
 	/**
@@ -15,6 +17,7 @@ public class AppConfiguration extends BaseBean{
 	private MetricsConfig metricsConfig;
 	private List<String> serviceClasses;
 	private String exceptionMapper;
+	private String dtoPackage;
 	/**
 	 * @return the exceptionMapper
 	 */
@@ -98,6 +101,18 @@ public class AppConfiguration extends BaseBean{
 	 */
 	public void setServiceClasses(List<String> serviceClasses) {
 		this.serviceClasses = serviceClasses;
+	}
+	/**
+	 * @return the dtoPackage
+	 */
+	public String getDtoPackage() {
+		return dtoPackage;
+	}
+	/**
+	 * @param dtoPackage the dtoPackage to set
+	 */
+	public void setDtoPackage(String dtoPackage) {
+		this.dtoPackage = dtoPackage;
 	}
 	
 	
