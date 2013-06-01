@@ -1,7 +1,22 @@
+/* Copyright 2004, 2005, 2006 Acegi Technology Pty Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.strategicgains.restexpress.loader.util;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -9,10 +24,12 @@ import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Priority;
+
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import javax.ws.rs.BeanParam;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.CookieParam;
@@ -39,20 +56,202 @@ import javax.ws.rs.ext.ContextResolver;
 import javax.ws.rs.ext.Providers;
 
 
-
+/**
+ * DOCUMENT ME!
+ *
+ * @author $author$
+ * @version $Revision$
+ */
 public final class AnnotationUtils {
-    
+    //~ Static fields/initializers =====================================================================================
+
     private static final Set<Class<?>> CONTEXT_CLASSES;
     private static final Set<Class<?>> PARAM_ANNOTATION_CLASSES;
     private static final Set<Class<?>> METHOD_ANNOTATION_CLASSES;
+
     static {
         CONTEXT_CLASSES = initContextClasses();
         PARAM_ANNOTATION_CLASSES = initParamAnnotationClasses();
         METHOD_ANNOTATION_CLASSES = initMethodAnnotationClasses();
     }
 
-    private AnnotationUtils() {
+    //~ Constructors ===================================================================================================
 
+    private AnnotationUtils() {}
+
+    //~ Methods ========================================================================================================
+
+    private static Method doGetAnnotatedMethod(Method m) {
+        if (m == null) {
+            return m;
+        }
+
+        for (Annotation a : m.getAnnotations()) {
+            if (AnnotationUtils.isMethodAnnotation(a)) {
+                return m;
+            }
+        }
+
+        for (Annotation[] paramAnnotations : m.getParameterAnnotations()) {
+            if (isValidParamAnnotations(paramAnnotations)) {
+                return m;
+            }
+        }
+
+        Class<?> superC = m.getDeclaringClass().getSuperclass();
+
+        if ((superC != null) && (Object.class != superC)) {
+            try {
+                Method method = doGetAnnotatedMethod(superC.getMethod(m.getName(), m.getParameterTypes()));
+
+                if (method != null) {
+                    return method;
+                }
+            } catch (NoSuchMethodException ex) {
+                // ignore
+            }
+        }
+
+        for (Class<?> i : m.getDeclaringClass().getInterfaces()) {
+            try {
+                Method method = doGetAnnotatedMethod(i.getMethod(m.getName(), m.getParameterTypes()));
+
+                if (method != null) {
+                    return method;
+                }
+            } catch (NoSuchMethodException ex) {
+                // ignore
+            }
+        }
+
+        return null;
+    }
+
+    public static Method getAnnotatedMethod(Method m) {
+        Method annotatedMethod = doGetAnnotatedMethod(m);
+
+        return (annotatedMethod == null) ? m : annotatedMethod;
+    }
+
+    public static <T> T getAnnotation(Annotation[] anns, Class<T> type) {
+        if (anns == null) {
+            return null;
+        }
+
+        for (Annotation a : anns) {
+            if (a.annotationType() == type) {
+                return type.cast(a);
+            }
+        }
+
+        return null;
+    }
+
+    public static String getAnnotationValue(Annotation a) {
+        String value = null;
+
+        if (a.annotationType() == PathParam.class) {
+            value = ((PathParam) a).value();
+        } else if (a.annotationType() == QueryParam.class) {
+            value = ((QueryParam) a).value();
+        } else if (a.annotationType() == MatrixParam.class) {
+            value = ((MatrixParam) a).value();
+        } else if (a.annotationType() == HeaderParam.class) {
+            value = ((HeaderParam) a).value();
+        } else if (a.annotationType() == CookieParam.class) {
+            value = ((CookieParam) a).value();
+        } else if (a.annotationType() == FormParam.class) {
+            value = ((FormParam) a).value();
+        }
+
+        return value;
+    }
+
+    public static int getBindingPriority(Class<?> providerCls) {
+        Priority b = getClassAnnotation(providerCls, Priority.class);
+
+        return (b == null) ? Priorities.USER : b.value();
+    }
+
+    public static <A extends Annotation> A getClassAnnotation(Class<?> c, Class<A> aClass) {
+        if (c == null) {
+            return null;
+        }
+
+        A p = c.getAnnotation(aClass);
+
+        if (p != null) {
+            return p;
+        }
+
+        p = getClassAnnotation(c.getSuperclass(), aClass);
+
+        if (p != null) {
+            return p;
+        }
+
+        // finally try the first one on the interface
+        for (Class<?> i : c.getInterfaces()) {
+            p = getClassAnnotation(i, aClass);
+
+            if (p != null) {
+                return p;
+            }
+        }
+
+        return null;
+    }
+
+    public static String getDefaultParameterValue(Annotation[] anns) {
+        DefaultValue dv = AnnotationUtils.getAnnotation(anns, DefaultValue.class);
+
+        return (dv != null) ? dv.value() : null;
+    }
+
+    public static HttpMethod getHttpMethod(Method m) {
+        for (Annotation a : m.getAnnotations()) {
+            HttpMethod httpM = a.annotationType().getAnnotation(HttpMethod.class);
+
+            if (httpM != null) {
+                return httpM;
+            }
+        }
+
+        return null;
+    }
+
+    public static String getHttpMethodValue(Method m) {
+        for (Annotation a : m.getAnnotations()) {
+            HttpMethod httpM = a.annotationType().getAnnotation(HttpMethod.class);
+
+            if (httpM != null) {
+                return httpM.value();
+            }
+        }
+
+        return null;
+    }
+
+    public static <A extends Annotation> A getMethodAnnotation(Method m, Class<A> aClass) {
+        return (m == null) ? null : m.getAnnotation(aClass);
+    }
+
+    public static List<String> getNameBindings(Annotation[] targetAnns) {
+        if (targetAnns.length == 0) {
+            return Collections.emptyList();
+        }
+
+        List<String> names = new LinkedList<String>();
+
+        for (Annotation a : targetAnns) {
+            NameBinding nb = a.annotationType().getAnnotation(NameBinding.class);
+
+            if (nb != null) {
+                names.add(a.annotationType().getName());
+            }
+        }
+
+        return names;
     }
 
     private static Set<Class<?>> initContextClasses() {
@@ -66,6 +265,7 @@ public final class AnnotationUtils {
         classes.add(ResourceInfo.class);
         classes.add(ResourceContext.class);
         classes.add(Application.class);
+
         // Servlet API
         try {
             classes.add(HttpServletRequest.class);
@@ -78,8 +278,19 @@ public final class AnnotationUtils {
             // attempted on the server side
             //LOG.fine(new org.apache.cxf.common.i18n.Message("NO_SERVLET_API", BUNDLE).toString());
         }
+
         // CXF-specific
         //classes.add(MessageContext.class);
+        return classes;
+    }
+
+    private static Set<Class<?>> initMethodAnnotationClasses() {
+        Set<Class<?>> classes = new HashSet<Class<?>>();
+        classes.add(HttpMethod.class);
+        classes.add(Path.class);
+        classes.add(Produces.class);
+        classes.add(Consumes.class);
+
         return classes;
     }
 
@@ -92,38 +303,17 @@ public final class AnnotationUtils {
         classes.add(CookieParam.class);
         classes.add(FormParam.class);
         classes.add(BeanParam.class);
+
         return classes;
     }
 
-    private static Set<Class<?>> initMethodAnnotationClasses() {
-        Set<Class<?>> classes = new HashSet<Class<?>>();
-        classes.add(HttpMethod.class);
-        classes.add(Path.class);
-        classes.add(Produces.class);
-        classes.add(Consumes.class);
-        return classes;
-    }
-
-    public static int getBindingPriority(Class<?> providerCls) {
-        Priority b = getClassAnnotation(providerCls, Priority.class);
-        return b == null ? Priorities.USER : b.value();
-    }
-    public static List<String> getNameBindings(Annotation[] targetAnns) {
-        if (targetAnns.length == 0) {
-            return Collections.emptyList();
-        }
-        List<String> names = new LinkedList<String>();
-        for (Annotation a : targetAnns) {
-            NameBinding nb = a.annotationType().getAnnotation(NameBinding.class);
-            if (nb != null) {
-                names.add(a.annotationType().getName());
-            }
-        }
-        return names;
-    }
-    
     public static boolean isContextClass(Class<?> contextClass) {
         return CONTEXT_CLASSES.contains(contextClass);
+    }
+
+    public static boolean isMethodAnnotation(Annotation a) {
+        return METHOD_ANNOTATION_CLASSES.contains(a.annotationType())
+        || (a.annotationType().getAnnotation(HttpMethod.class) != null);
     }
 
     public static boolean isParamAnnotationClass(Class<?> annotationClass) {
@@ -131,7 +321,7 @@ public final class AnnotationUtils {
     }
 
     public static boolean isValidParamAnnotationClass(Class<?> annotationClass) {
-        return PARAM_ANNOTATION_CLASSES.contains(annotationClass) || Context.class == annotationClass;
+        return PARAM_ANNOTATION_CLASSES.contains(annotationClass) || (Context.class == annotationClass);
     }
 
     public static boolean isValidParamAnnotations(Annotation[] paramAnnotations) {
@@ -140,143 +330,7 @@ public final class AnnotationUtils {
                 return true;
             }
         }
+
         return false;
     }
-
-    public static boolean isMethodAnnotation(Annotation a) {
-        return METHOD_ANNOTATION_CLASSES.contains(a.annotationType())
-               || a.annotationType().getAnnotation(HttpMethod.class) != null;
-    }
-
-    public static String getAnnotationValue(Annotation a) {
-        String value = null;
-        if (a.annotationType() == PathParam.class) {
-            value = ((PathParam)a).value();
-        } else if (a.annotationType() == QueryParam.class) {
-            value = ((QueryParam)a).value();
-        } else if (a.annotationType() == MatrixParam.class) {
-            value = ((MatrixParam)a).value();
-        } else if (a.annotationType() == HeaderParam.class) {
-            value = ((HeaderParam)a).value();
-        } else if (a.annotationType() == CookieParam.class) {
-            value = ((CookieParam)a).value();
-        } else if (a.annotationType() == FormParam.class) {
-            value = ((FormParam)a).value();
-        }
-        return value;
-    }
-
-    public static <T> T getAnnotation(Annotation[] anns, Class<T> type) {
-        if (anns == null) {
-            return null;
-        }
-        for (Annotation a : anns) {
-            if (a.annotationType() == type) {
-                return type.cast(a);
-            }
-        }
-        return null;
-    }
-
-    public static Method getAnnotatedMethod(Method m) {
-        Method annotatedMethod = doGetAnnotatedMethod(m);
-        return annotatedMethod == null ? m : annotatedMethod;
-    }
-
-    private static Method doGetAnnotatedMethod(Method m) {
-
-        if (m == null) {
-            return m;
-        }
-
-        for (Annotation a : m.getAnnotations()) {
-            if (AnnotationUtils.isMethodAnnotation(a)) {
-                return m;
-            }
-        }
-        for (Annotation[] paramAnnotations : m.getParameterAnnotations()) {
-            if (isValidParamAnnotations(paramAnnotations)) {
-                return m;
-            }
-        }
-
-        Class<?> superC = m.getDeclaringClass().getSuperclass();
-        if (superC != null && Object.class != superC) {
-            try {
-                Method method = doGetAnnotatedMethod(superC.getMethod(m.getName(), m.getParameterTypes()));
-                if (method != null) {
-                    return method;
-                }
-            } catch (NoSuchMethodException ex) {
-                // ignore
-            }
-        }
-        for (Class<?> i : m.getDeclaringClass().getInterfaces()) {
-            try {
-                Method method = doGetAnnotatedMethod(i.getMethod(m.getName(), m.getParameterTypes()));
-                if (method != null) {
-                    return method;
-                }
-            } catch (NoSuchMethodException ex) {
-                // ignore
-            }
-        }
-
-        return null;
-    }
-
-    public static String getHttpMethodValue(Method m) {
-        for (Annotation a : m.getAnnotations()) {
-            HttpMethod httpM = a.annotationType().getAnnotation(HttpMethod.class);
-            if (httpM != null) {
-                return httpM.value();
-            }
-        }
-        return null;
-    }
-    
-    public static HttpMethod getHttpMethod(Method m) {
-        for (Annotation a : m.getAnnotations()) {
-            HttpMethod httpM = a.annotationType().getAnnotation(HttpMethod.class);
-            if (httpM != null) {
-                return httpM;
-            }
-        }
-        return null;
-    }
-
-    public static <A extends Annotation> A getMethodAnnotation(Method m, Class<A> aClass) {
-        return m == null ? null : m.getAnnotation(aClass);
-    }
-
-    public static <A extends Annotation> A getClassAnnotation(Class<?> c, Class<A> aClass) {
-        if (c == null) {
-            return null;
-        }
-        A p = c.getAnnotation(aClass);
-        if (p != null) {
-            return p;
-        }
-
-        p = getClassAnnotation(c.getSuperclass(), aClass);
-        if (p != null) {
-            return p;
-        }
-
-        // finally try the first one on the interface
-        for (Class<?> i : c.getInterfaces()) {
-            p = getClassAnnotation(i, aClass);
-            if (p != null) {
-                return p;
-            }
-        }
-        return null;
-    }
-
-    public static String getDefaultParameterValue(Annotation[] anns) {
-
-        DefaultValue dv = AnnotationUtils.getAnnotation(anns, DefaultValue.class);
-        return dv != null ? dv.value() : null;
-    }
-
 }

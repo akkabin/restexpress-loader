@@ -18,15 +18,26 @@
  */
 package com.strategicgains.restexpress.loader.dto;
 
-import java.io.Serializable;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
 
+import java.io.Serializable;
+
+
+/**
+ * DOCUMENT ME!
+ *
+ * @author $author$
+ * @version $Revision$
+ */
 public abstract class BaseBean implements Serializable {
+    //~ Static fields/initializers =====================================================================================
 
     private static final long serialVersionUID = 3119542005279892164L;
+
+    //~ Methods ========================================================================================================
 
     @Override
     public boolean equals(Object obj) {
